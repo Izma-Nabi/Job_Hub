@@ -1,0 +1,390 @@
+{
+  "info": {
+    "name": "Job Portal API",
+    "_postman_id": "job-portal-collection",
+    "description": "Collection for Job Portal API (localhost:3000)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Register Company",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json && json.token) { pm.environment.set('companyToken', json.token); }",
+              "if (json && json.id) { pm.environment.set('companyId', json.id); }"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"companyName\": \"Acme Ltd\",\n  \"email\": \"acme@example.com\",\n  \"password\": \"P@ssw0rd!\",\n  \"phoneNumber\": \"555-0100\",\n  \"industry\": \"Software\",\n  \"location\": \"Remote\",\n  \"website\": \"https://acme.example\",\n  \"description\": \"Acme company\"\n}" },
+        "url": "http://localhost:3000/api/auth/register/company"
+      }
+    },
+    {
+      "name": "Login Company",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json && json.token) { pm.environment.set('companyToken', json.token); }",
+              "if (json && json.id) { pm.environment.set('companyId', json.id); }"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"acme@example.com\",\n  \"password\": \"P@ssw0rd!\",\n  \"role\": \"company\"\n}" },
+        "url": "http://localhost:3000/api/auth/login"
+      }
+    },
+    {
+      "name": "Create Job (company)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": { "exec": [ "// Ensure Authorization header is set from environment", "if (pm.environment.get('companyToken')) { pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('companyToken') }); }" ] }
+        },
+        {
+          "listen": "test",
+          "script": { "exec": [ "const json = pm.response.json();", "if (json && json.id) pm.environment.set('jobId', json.id);", "if (pm.response.code === 401) pm.test('Auth failed', () => { throw new Error('401 Unauthorized - token missing or invalid'); });" ] }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"title\": \"Software Engineer\",\n  \"description\": \"Develop and maintain backend services.\",\n  \"requirements\": \"Node.js, SQL, REST\",\n  \"location\": \"Remote\",\n  \"salaryRange\": \"60k-90k\",\n  \"employmentType\": \"Full-time\",\n  \"deadline\": \"2026-01-31\",\n  \"isActive\": 1\n}" },
+        "url": "http://localhost:3000/api/jobs"
+      }
+    },
+    {
+      "name": "Update Job (company owner or admin)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": { "exec": [ "// Apply token from environment", "if (pm.environment.get('companyToken')) { pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('companyToken') }); }" ] }
+        },
+        {
+          "listen": "test",
+          "script": { "exec": [
+            "// Fail on auth error",
+            "if (pm.response.code === 401) pm.test('Auth failed', () => { throw new Error('401 Unauthorized - token missing or invalid'); });",
+            "// Expect success status for update (200 or 204)",
+            "pm.test('Update returned success status', () => { pm.expect([200,204]).to.include(pm.response.code); });",
+            "// If server returns updated resource JSON, optionally update jobId",
+            "try { const json = pm.response.json(); if (json && (json.id || json.JobID)) { pm.environment.set('jobId', json.id || json.JobID); } } catch (e) { /* no JSON body */ }",
+            "// Basic check that response body (when present) reflects the fields we sent",
+            "try { const json = pm.response.json(); if (json && json.title) pm.test('Title present in response', () => pm.expect(json.title).to.be.a('string')); } catch (e) { }"
+          ] }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"title\": \"Senior Software Engineer\",\n  \"salaryRange\": \"80k-110k\",\n  \"isActive\": 1\n}" },
+        "url": "http://localhost:3000/api/jobs/{{jobId}}"
+      }
+    },
+    {
+      "name": "Delete Job (company owner or admin)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": { "exec": [ "// Apply company token automatically", "if (pm.environment.get('companyToken')) { pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('companyToken') }); }" ] }
+        },
+        {
+          "listen": "test",
+          "script": { "exec": [
+            "// Fail on auth error",
+            "if (pm.response.code === 401) pm.test('Auth failed', () => { throw new Error('401 Unauthorized - token missing or invalid'); });",
+            "// Expect deletion success: 200 (with JSON) or 204 No Content",
+            "pm.test('Delete returned success status', () => { pm.expect([200,204]).to.include(pm.response.code); });",
+            "// If deletion succeeded, remove jobId from environment to avoid accidental reuse",
+            "if ([200,204].includes(pm.response.code)) { pm.environment.unset('jobId'); }",
+            "// Optional: if JSON response includes a message, assert it's a success message",
+            "try { const json = pm.response.json(); if (json && json.message) pm.test('Server returned message', () => pm.expect(json.message.toLowerCase()).to.match(/(deleted|removed|success)/)); } catch (e) { }"
+          ] }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "http://localhost:3000/api/jobs/{{jobId}}"
+      }
+    },
+    {
+      "name": "Update Company Profile",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": { "exec": [ "// Apply company token automatically", "if (pm.environment.get('companyToken')) { pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('companyToken') }); }" ] }
+        },
+        {
+          "listen": "test",
+          "script": { "exec": [
+            "// Fail on auth error",
+            "if (pm.response.code === 401) pm.test('Auth failed', () => { throw new Error('401 Unauthorized - token missing or invalid'); });",
+            "// Expect success status for update (200 or 204)",
+            "pm.test('Update company returned success status', () => { pm.expect([200,204]).to.include(pm.response.code); });",
+            "// If server returns updated resource JSON, optionally update companyId",
+            "try { const json = pm.response.json(); if (json && (json.id || json.CompanyID)) { pm.environment.set('companyId', json.id || json.CompanyID); } } catch (e) { }",
+            "// Basic check that response body (when present) reflects the fields we sent",
+            "try { const json = pm.response.json(); if (json && json.companyName) pm.test('companyName present in response', () => pm.expect(json.companyName).to.be.a('string')); } catch (e) { }"
+          ] }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"companyName\": \"Acme Incorporated\",\n  \"phoneNumber\": \"555-0200\",\n  \"website\": \"https://new.example.com\",\n  \"description\": \"Updated description\",\n  \"isActive\": 1\n}" },
+        "url": "http://localhost:3000/api/company/me"
+      }
+    },
+    {
+      "name": "Delete Company Profile",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": { "exec": [ "// Apply company token automatically", "if (pm.environment.get('companyToken')) { pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('companyToken') }); }" ] }
+        },
+        {
+          "listen": "test",
+          "script": { "exec": [
+            "// Fail on auth error",
+            "if (pm.response.code === 401) pm.test('Auth failed', () => { throw new Error('401 Unauthorized - token missing or invalid'); });",
+            "// Expect deletion success: 200 or 204",
+            "pm.test('Delete company returned success status', () => { pm.expect([200,204]).to.include(pm.response.code); });",
+            "// Unset company token and id on successful deletion",
+            "if ([200,204].includes(pm.response.code)) { pm.environment.unset('companyToken'); pm.environment.unset('companyId'); }",
+            "// Optional: check server message text",
+            "try { const json = pm.response.json(); if (json && json.message) pm.test('Server returned message', () => pm.expect(json.message.toLowerCase()).to.match(/(deleted|removed|success)/)); } catch (e) { }"
+          ] }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "http://localhost:3000/api/company/me"
+      }
+    },
+    {
+      "name": "Update Candidate Profile",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": { "exec": [ "// Apply candidate token automatically", "if (pm.environment.get('candidateToken')) { pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('candidateToken') }); }" ] }
+        },
+        {
+          "listen": "test",
+          "script": { "exec": [
+            "// Fail on auth error",
+            "if (pm.response.code === 401) pm.test('Auth failed', () => { throw new Error('401 Unauthorized - token missing or invalid'); });",
+            "// Expect success for update (200 or 204)",
+            "pm.test('Update candidate returned success status', () => { pm.expect([200,204]).to.include(pm.response.code); });",
+            "// If server returned candidate JSON, update candidateToken or other env vars if present",
+            "try { const json = pm.response.json(); if (json && json.CandidateID) pm.environment.set('candidateId', json.CandidateID); } catch (e) { }",
+            "// Optional content checks",
+            "try { const json = pm.response.json(); if (json && json.fullName) pm.test('fullName present in response', () => pm.expect(json.fullName).to.be.a('string')); } catch (e) { }"
+          ] }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"fullName\": \"Jane A. Doe\",\n  \"phoneNumber\": \"555-2000\",\n  \"resumeLink\": \"https://resume.example/jane_v2.pdf\",\n  \"isActive\": 1\n}" },
+        "url": "http://localhost:3000/api/candidate/me"
+      }
+    },
+    {
+      "name": "Delete Candidate Profile",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": { "exec": [ "// Apply candidate token automatically", "if (pm.environment.get('candidateToken')) { pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('candidateToken') }); }" ] }
+        },
+        {
+          "listen": "test",
+          "script": { "exec": [
+            "// Fail on auth error",
+            "if (pm.response.code === 401) pm.test('Auth failed', () => { throw new Error('401 Unauthorized - token missing or invalid'); });",
+            "// Expect deletion success: 200 or 204",
+            "pm.test('Delete candidate returned success status', () => { pm.expect([200,204]).to.include(pm.response.code); });",
+            "// Unset candidateToken to avoid reuse if deleted",
+            "if ([200,204].includes(pm.response.code)) { pm.environment.unset('candidateToken'); pm.environment.unset('candidateId'); }",
+            "// Optional: check server message text",
+            "try { const json = pm.response.json(); if (json && json.message) pm.test('Server returned message', () => pm.expect(json.message.toLowerCase()).to.match(/(deleted|removed|success)/)); } catch (e) { }"
+          ] }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "http://localhost:3000/api/candidate/me"
+      }
+    },
+    {
+      "name": "Register Candidate",
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": [ "const json = pm.response.json();", "if (json && json.token) pm.environment.set('candidateToken', json.token);" ] }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"fullName\": \"Jane Doe\",\n  \"email\": \"jane@example.com\",\n  \"password\": \"CandidateP@ss\",\n  \"phoneNumber\": \"555-1000\",\n  \"resumeLink\": \"https://resume.example/jane.pdf\"\n}" },
+        "url": "http://localhost:3000/api/auth/register/candidate"
+      }
+    },
+    {
+      "name": "Login Candidate",
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": [ "const json = pm.response.json();", "if (json && json.token) pm.environment.set('candidateToken', json.token);" ] }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"jane@example.com\",\n  \"password\": \"CandidateP@ss\",\n  \"role\": \"candidate\"\n}" },
+        "url": "http://localhost:3000/api/auth/login"
+      }
+    },
+    {
+      "name": "Apply to Job (candidate)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": { "exec": [ "if (pm.environment.get('candidateToken')) { pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('candidateToken') }); }" ] }
+        },
+        {
+          "listen": "test",
+          "script": { "exec": [ "if (pm.response.code === 401) pm.test('Auth failed', () => { throw new Error('401 Unauthorized - token missing or invalid'); });" ] }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"coverLetter\": \"I'm very interested in this role.\",\n  \"resumeLink\": \"https://resume.example/jane.pdf\"\n}" },
+        "url": "http://localhost:3000/api/jobs/{{jobId}}/apply"
+      }
+    },
+    {
+      "name": "Get Job Details",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "http://localhost:3000/api/jobs/{{jobId}}"
+      }
+    },
+    {
+      "name": "Get Jobs For Company",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "http://localhost:3000/api/jobs/company/{{companyId}}"
+      }
+    }
+    ,
+    {
+      "name": "Get Applications for Company Job",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": { "exec": [ "if (pm.environment.get('companyToken')) { pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('companyToken') }); }" ] }
+        },
+        {
+          "listen": "test",
+          "script": { "exec": [ "const json = pm.response.json();", "if (json && json.length > 0 && json[0].ApplicationID) { pm.environment.set('applicationId', json[0].ApplicationID); }" ] }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "http://localhost:3000/api/jobs/{{jobId}}/applications"
+      },
+      "description": "Gets all applications for a specific job. Useful for a company to find an applicationId to update."
+    },
+    {
+      "name": "Company: Schedule Interview",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": { "exec": [ "if (pm.environment.get('companyToken')) { pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('companyToken') }); }" ] }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"scheduledDate\": \"2026-02-15T10:00:00\",\n  \"location\": \"Virtual via Teams\",\n  \"mode\": \"Online\"\n}"
+        },
+        "url": "http://localhost:3000/api/applications/{{applicationId}}/interview"
+      },
+      "description": "Company schedules an interview for a candidate's application. This also updates the application status to 'Reviewed'."
+    },
+    {
+      "name": "Company: Update Application Status",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": { "exec": [ "if (pm.environment.get('companyToken')) { pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('companyToken') }); }" ] }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"status\": \"Accepted\"\n}" },
+        "url": "http://localhost:3000/api/applications/{{applicationId}}/status"
+      },
+      "description": "Company marks a candidate as Accepted or Rejected. Valid statuses: 'Accepted', 'Rejected'."
+    },
+    {
+      "name": "Company: View Interview Candidates",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": { "exec": [ "if (pm.environment.get('companyToken')) { pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('companyToken') }); }" ] }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "http://localhost:3000/api/jobs/{{jobId}}/interviews"
+      },
+      "description": "Company views all candidates selected for interviews for a specific job."
+    },
+    {
+      "name": "Candidate: View My Applications",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": { "exec": [ "if (pm.environment.get('candidateToken')) { pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('candidateToken') }); }" ] }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "http://localhost:3000/api/applications/me"
+      },
+      "description": "Candidate receives call for interview and final results by checking the status of their applications."
+    }
+  ]
+}

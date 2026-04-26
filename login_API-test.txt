@@ -1,0 +1,120 @@
+Register Company
+
+URL: POST http://localhost:3000/api/auth/register/company
+Body example:
+{
+"companyName": "Acme Corp",
+"email": "acme@example.com",
+"password": "Secret123!",
+"phoneNumber": "555-1234",
+"industry": "Software",
+"location": "City, Country",
+"website": "https://acme.example",
+"description": "Acme company description"
+}
+Expected success response:
+Status: 200 OK
+Body:
+{
+"success": true,
+"id": 42, // new CompanyID
+"token": "<JWT_TOKEN>"
+}
+If email already exists:
+Status: 409 Conflict
+Body: { "error": "Email already registered" }
+If missing required fields:
+Status: 400 Bad Request
+Body: { "error": "companyName, email and password required" }
+What to check in Postman:
+
+The token value should be a long string (JWT). You can copy it and decode at jwt.io — payload will include { "role":"company", "id": <CompanyID>, ... }.
+Register Candidate
+===========================================================================================================================
+URL: POST http://localhost:3000/api/auth/register/candidate
+Body example:
+{
+"fullName": "Jane Doe",
+"email": "jane@example.com",
+"password": "Secret123!",
+"phoneNumber": "555-9876",
+"skills": "Node.js,SQL",
+"resumeLink": "https://example.com/resume.pdf",
+"coverLetter": "I am interested",
+"experienceYears": 3
+}
+Expected success response:
+Status: 200 OK
+Body:
+{
+"success": true,
+"id": 101, // new CandidateID
+"token": "<JWT_TOKEN>"
+}
+Duplicate email: 409 Conflict, body: { "error": "Email already registered" }
+Missing required fields: 400 Bad Request, body: { "error": "fullName, email and password required" }
+Login (company or candidate)
+================================================================================================================
+URL: POST http://localhost:3000/api/auth/login
+Body example (company):
+{
+"email": "acme@example.com",
+"password": "Secret123!",
+"role": "company"
+}
+Body example (candidate):
+{
+"email": "jane@example.com",
+"password": "Secret123!",
+"role": "candidate"
+}
+Expected success response:
+Status: 200 OK
+Body:
+{
+"success": true,
+"id": 42, // CompanyID or CandidateID
+"token": "<JWT_TOKEN>"
+}
+Invalid credentials:
+Status: 401 Unauthorized
+Body: { "error": "Invalid credentials" }
+Missing fields:
+Status: 400 Bad Request
+Body: { "error": "email, password and role required" }
+Admin login (note difference)
+
+=======================================================================================================================
+
+Admin login uses username instead of email:
+URL: POST http://localhost:3000/api/auth/login
+Body example:
+{
+"username": "adminuser",
+"password": "adminpass",
+"role": "admin"
+}
+Expected success: same format as above (id is AdminID, token role will be admin)
+If you prefer to login admin by email, I can change the route to accept either email or username.
+
+==================================================================
+to check if it sucessfully retreive all posted jobs from the company 
+using id(specific company)
+use GET http://localhost:3000/api/jobs/company/1
+
+=============================================================
+to update candidate
+PUT http://localhost:3000/api/candidate/me
+{
+"fullName": "Jane Doe Updated",
+"phoneNumber": "555-9999",
+"skills": "Node.js,SQL,React",
+"resumeLink": "https://example.com/resume.pdf",
+"coverLetter": "Updated cover letter",
+"experienceYears": 4,
+"isActive": 1
+}
+
+
+=========================================================
+to update companies and add jobs
